@@ -120,6 +120,8 @@
     }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- سكربت gigapub للإعلانات -->
+  <script src="https://ad.gigapub.tech/script?id=1837"></script>
 </head>
 <body>
   <div class="container">
@@ -163,54 +165,62 @@
     // تحديث الرصيد عند بداية الصفحة
     updateBalanceDisplay();
 
+    // تعديل: دالة تفعيل النقر التلقائي بعد عرض الإعلان
     function startAutoClickManual(restore = false) {
-      if (autoClick) return;
-      autoClick = true;
+      // عرض إعلان gigapub قبل البدء
+      window.showGiga()
+        .then(() => {
+          if (autoClick) return;
+          autoClick = true;
 
-      const countdownEl = document.getElementById("countdown");
-      countdownEl.style.display = "inline-block";
+          const countdownEl = document.getElementById("countdown");
+          countdownEl.style.display = "inline-block";
 
-      let duration = 2 * 60 * 1000; // 2 دقائق
-      let endTime = Date.now() + duration;
+          let duration = 2 * 60 * 1000; // 2 دقائق
+          let endTime = Date.now() + duration;
 
-      // إذا تم الاستعادة
-      if (restore) {
-        const endTimeStored = parseInt(localStorage.getItem(getAutoEndTimeKey()));
-        if (!isNaN(endTimeStored) && endTimeStored > Date.now()) {
-          endTime = endTimeStored;
-          duration = endTimeStored - Date.now();
-        } else {
-          autoClick = false;
-          countdownEl.style.display = "none";
-          localStorage.removeItem(getAutoEndTimeKey());
-          return;
-        }
-      } else {
-        localStorage.setItem(getAutoEndTimeKey(), endTime);
-      }
+          // إذا تم الاستعادة
+          if (restore) {
+            const endTimeStored = parseInt(localStorage.getItem(getAutoEndTimeKey()));
+            if (!isNaN(endTimeStored) && endTimeStored > Date.now()) {
+              endTime = endTimeStored;
+              duration = endTimeStored - Date.now();
+            } else {
+              autoClick = false;
+              countdownEl.style.display = "none";
+              localStorage.removeItem(getAutoEndTimeKey());
+              return;
+            }
+          } else {
+            localStorage.setItem(getAutoEndTimeKey(), endTime);
+          }
 
-      interval = setInterval(() => {
-        // يتم إضافة الرصيد فقط إذا لم ينته الوقت
-        if (Date.now() < endTime) {
-          balance += 0.000000005;
-          updateBalanceDisplay();
-        }
+          interval = setInterval(() => {
+            // يتم إضافة الرصيد فقط إذا لم ينته الوقت
+            if (Date.now() < endTime) {
+              balance += 0.000000005;
+              updateBalanceDisplay();
+            }
 
-        let remaining = endTime - Date.now();
-        if (remaining < 0) remaining = 0;
+            let remaining = endTime - Date.now();
+            if (remaining < 0) remaining = 0;
 
-        let minutes = Math.floor(remaining / 60000);
-        let seconds = Math.floor((remaining % 60000) / 1000);
-        countdownEl.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            let minutes = Math.floor(remaining / 60000);
+            let seconds = Math.floor((remaining % 60000) / 1000);
+            countdownEl.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-        if (remaining <= 0) {
-          clearInterval(interval);
-          autoClick = false;
-          countdownEl.style.display = "none";
-          localStorage.removeItem(getAutoEndTimeKey());
-          alert("Auto Click stopped after 2 minutes.");
-        }
-      }, 1000);
+            if (remaining <= 0) {
+              clearInterval(interval);
+              autoClick = false;
+              countdownEl.style.display = "none";
+              localStorage.removeItem(getAutoEndTimeKey());
+              alert("Auto Click stopped after 2 minutes.");
+            }
+          }, 1000);
+        })
+        .catch(e => {
+          alert("يجب مشاهدة الإعلان أولاً!\n" + (e?.message || e));
+        });
     }
 
     function stopAutoClick() {
