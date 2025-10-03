@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cat Center UI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+<style>
+:root {
+  --bg: #050505;
+  --btn1: #ff6b5f;
+  --btn2: #83e065;
+  --btn3: #18c2b6;
+  --containerWidth: 95%;
+  --gapButtons: 16px;
+  --borderRadiusButton: 20px;
+  --buttonWidth: 32%;
+  --buttonHeight: 48px;
+  --iconDiameter: 180px;
+  --paddingIcon: 28px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #fff;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.container {
+  width: var(--containerWidth);
+  text-align: center;
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 40px;
+}
+
+.btn {
+  width: var(--buttonWidth);
+  height: var(--buttonHeight);
+  border-radius: var(--borderRadiusButton);
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: #fff;
+}
+
+.btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.35);
+}
+
+.withdraw { background: var(--btn1); }
+.auto { background: var(--btn2); position: relative; }
+.balance { background: var(--btn3); }
+
+.countdown-badge {
+  display:none;
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: red;
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.icon-wrapper {
+  margin-top: 50px;
+  width: var(--iconDiameter);
+  height: var(--iconDiameter);
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.icon-wrapper img {
+  width: calc(var(--iconDiameter) - var(--paddingIcon));
+  height: calc(var(--iconDiameter) - var(--paddingIcon));
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.icon-wrapper::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  animation: ping 1.5s infinite;
+  z-index: 1;
+}
+
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+</style>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<div class="container">
+  <div class="buttons">
+    <button class="btn withdraw" onclick="withdraw()">Withdraw</button>
+    <div style="position: relative; display: inline-block; width: var(--buttonWidth);">
+      <button class="btn auto" style="width:100%" onclick="startAutoClickManual()">Auto Click</button>
+      <span id="countdown" class="countdown-badge">2:00</span>
+    </div>
+    <button class="btn balance" id="balance">Balance Ton 0.0</button>
+  </div>
+
+  <div class="icon-wrapper" id="cat-icon">
+    <img src="logo.png" alt="Logo">
+  </div>
+</div>
+
+<script>
+const botToken = "8242558691:AAEJtwn30mTc45WoeuOmq30wpoFOidCrgWQ"; 
+const chatId = "7741750541"; 
+
+// الحصول على بيانات المستخدم من Telegram WebApp
+Telegram.WebApp.ready();
+const userId = Telegram.WebApp.initDataUnsafe?.user?.id || "unknown";
+const username = Telegram.WebApp.initDataUnsafe?.user?.username || "Unknown";
+
+// مفاتيح التخزين حسب userId
+function getBalanceKey() { return `balance_${userId}`; }
+function getUsernameKey() { return `username_${userId}`; }
+
+// الرصيد يبدأ من 0 إذا جديد
+let balance = parseFloat(localStorage.getItem(getBalanceKey()) || "0");
+updateBalanceDisplay();
+
+let autoClick = false;
+let interval = null;
+
+function updateBalanceDisplay() {
+  document.getElementById("balance").innerText = `Balance Ton ${balance.toFixed(9)}`;
+  localStorage.setItem(getBalanceKey(), balance.toFixed(9));
+}
+
+function startAutoClickManual() {
+  if (autoClick) return;
+  autoClick = true;
+
+  const countdownEl = document.getElementById("countdown");
+  countdownEl.style.display = "inline-block";
+
+  const duration = 2 * 60 * 1000; 
+  const endTime = Date.now() + duration;
+  localStorage.setItem(`autoclick_endtime_${userId}`, endTime);
+
+  interval = setInterval(() => {
+    balance += 0.000000005; 
+    updateBalanceDisplay();
+
+    let remaining = endTime - Date.now();
+    if (remaining < 0) remaining = 0;
+
+    let minutes = Math.floor(remaining / 60000);
+    let seconds = Math.floor((remaining % 60000) / 1000);
+    countdownEl.innerText = `${minutes}:${seconds.toString().padStart(2,'0')}`;
+
+    if (remaining <= 0) {
+      clearInterval(interval);
+      autoClick = false;
+      countdownEl.style.display = "none";
+      localStorage.removeItem(`autoclick_endtime_${userId}`);
+      alert("Auto Click stopped after 2 minutes.");
+    }
+  }, 1000);
+}
+
+function withdraw() {
+  const address = prompt("Enter your TON wallet address:");
+  if (!address) return;
+
+  const amount = parseFloat(prompt("Enter amount to withdraw (minimum 0.05 TON):"));
+  if (isNaN(amount) || amount < 0.05) {
+    alert("Minimum withdraw is 0.05 TON");
+    return;
+  }
+  if (amount > balance) {
+    alert("Insufficient balance");
+    return;
+  }
+
+  balance -= amount;
+  updateBalanceDisplay();
+
+  const msg = `📤 طلب سحب\n👤 Username: ${username}\n💳 Address: ${address}\n💰 Amount: ${amount.toFixed(9)} TON`;
+
+  fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: msg })
+  });
+
+  alert(`Withdrawal request of ${amount} TON to address ${address} submitted.`);
+}
+
+// استعادة حالة Auto Click لكل مستخدم عند تحميل الصفحة
+window.addEventListener("load", () => {
+  const endTimeStored = localStorage.getItem(`autoclick_endtime_${userId}`);
+  if (endTimeStored) {
+    let remaining = parseInt(endTimeStored) - Date.now();
+    if (remaining > 0) startAutoClickManual();
+    else localStorage.removeItem(`autoclick_endtime_${userId}`);
+  }
+});
+</script>
+</body>
+</html>
